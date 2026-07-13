@@ -230,12 +230,14 @@
   <h1>Absensi Pengajian MUMI Citeureup</h1>
   <p>Scan barcode &middot; rekap otomatis &middot; gratis, jalan langsung di browser</p>
   <nav class="noprint">
-    <button data-tab="cetak" class="active">🖨️ Cetak Barcode</button>
-    <button data-tab="scan">📱 Scan Absensi</button>
+    <button data-tab="scan" class="active">📱 Scan Absensi</button>
+    <button data-tab="kelompok">👥 MUMI Kelompok</button>
     <button data-tab="rekap">📋 Rekap</button>
+    <button data-tab="cetak">🖨️ Cetak Barcode</button>
     <button data-tab="daftar">➕ Daftar Anggota</button>
     <button data-tab="edit">✏️ Edit Data</button>
-    <button data-tab="pengurus">ℹ️ Info & WhatsApp</button>
+    <button data-tab="struktur">⚙️ Struktur Pengurus</button>
+    <button data-tab="admin">ℹ️ Admin & WhatsApp</button>
   </nav>
 </header>
 
@@ -509,6 +511,72 @@
       📱 Chat WhatsApp (085641464205)
     </a>
   </div>
+
+  <!-- TAB MUMI KELOMPOK -->
+</section>
+
+<section id="tab-kelompok" style="display:none">
+  <div class="card">
+    <h2>👥 MUMI Kelompok - Pengajian Mingguan</h2>
+    <p class="sub">Scan absensi per kelompok dengan data terpisah dari MUMI Desa</p>
+    <div class="row">
+      <select id="kelompokSelect">
+        <option value="">-- Pilih Kelompok --</option>
+        <option value="Al Muhajirin">Al Muhajirin</option>
+        <option value="Bojong Koneng">Bojong Koneng</option>
+        <option value="Kamurang">Kamurang</option>
+        <option value="Sanja">Sanja</option>
+        <option value="Sentul">Sentul</option>
+        <option value="Tarikolot">Tarikolot</option>
+      </select>
+      <input type="date" id="kelTanggal">
+    </div>
+    <button class="btn" id="btnKelStart" style="margin-top:10px;">▶ MULAI SESI KELOMPOK</button>
+    <div class="hint" style="margin-top:10px;">💡 Pilih kelompok dan tanggal, terus klik "Mulai Sesi" untuk scan barcode jamaah kelompok tersebut.</div>
+  </div>
+</section>
+
+<!-- TAB STRUKTUR PENGURUS -->
+<section id="tab-struktur" style="display:none">
+  <div class="card">
+    <h2>⚙️ Struktur Pengurus MUMI Kelompok</h2>
+    <p class="sub">Input nama pengurus untuk setiap kelompok. Data tersimpan otomatis.</p>
+    <div id="strukturContent"></div>
+  </div>
+</section>
+
+<!-- TAB ADMIN & WHATSAPP -->
+<section id="tab-admin" style="display:none">
+  <div class="card">
+    <h2>ℹ️ Admin & WhatsApp</h2>
+    <p class="sub">Setup Google Sheets sync, hubungi admin, atau export data</p>
+    
+    <h3 style="color:var(--accent-dark);margin:14px 0 10px;font-size:14px;">🔗 Google Sheets Sync</h3>
+    <input type="text" id="sheetUrl" placeholder="Paste Google Apps Script URL (dari Deploy Web App)" style="margin-bottom:8px;">
+    <button class="btn" id="btnTestSheet" style="width:100%;margin-bottom:10px;">✔️ Uji Koneksi Google Sheets</button>
+    <div class="hint">📌 Untuk setup: buat Google Sheet → Tools > Script Editor → paste code dari file GOOGLE_APPS_SCRIPT.gs → Deploy Web App. Lihat panduan di bawah.</div>
+    
+    <h3 style="color:var(--accent-dark);margin:14px 0 10px;font-size:14px;">📱 Chat Admin</h3>
+    <a href="https://wa.me/6285641464205?text=Halo%20admin%20MUMI%20Citeureup.%20Saya%20ingin%20daftar%2Fedit%20anggota%20atau%20laporkan%20masalah" target="_blank" style="display:block;text-align:center;background:var(--accent);color:#fff;padding:14px;border-radius:9px;text-decoration:none;font-weight:600;margin-bottom:12px;font-size:14px;">
+      📱 Chat WhatsApp (085641464205)
+    </a>
+    
+    <h3 style="color:var(--accent-dark);margin:14px 0 10px;font-size:14px;">💾 Backup Data</h3>
+    <button class="btn ghost" id="btnExportFinal" style="width:100%;margin-bottom:8px;">📥 Export Semua Data ke JSON</button>
+    <button class="btn ghost" id="btnLogout" style="width:100%;">🚪 Keluar</button>
+    
+    <div style="margin-top:16px;background:var(--gray-soft);border-radius:10px;padding:12px;font-size:12px;color:var(--ink-soft);">
+      <strong>📖 Panduan Google Sheets Integration:</strong><br>
+      1. Buka https://sheets.google.com, buat spreadsheet baru<br>
+      2. Buka Tools > Script Editor<br>
+      3. Delete template, paste kode dari GOOGLE_APPS_SCRIPT.gs<br>
+      4. Klik Deploy > New Deployment > Web app<br>
+      5. Execute as: your email | Allow access: Anyone<br>
+      6. Copy "Deployment URL", paste di input di atas<br>
+      7. Klik "Uji Koneksi" untuk verifikasi<br>
+      8. Setelah itu, semua scan absensi auto-sync ke Google Sheets!
+    </div>
+  </div>
 </section>
 
 </main>
@@ -609,7 +677,7 @@ document.querySelectorAll('nav button').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
-    ['cetak','scan','rekap','daftar','edit','pengurus'].forEach(t=>{
+    ['cetak','scan','rekap','daftar','edit','pengurus','kelompok','struktur','admin'].forEach(t=>{
       document.getElementById('tab-'+t).style.display = (t===btn.dataset.tab)?'block':'none';
     });
     if(btn.dataset.tab==='scan') renderScanTab();
@@ -617,6 +685,9 @@ document.querySelectorAll('nav button').forEach(btn=>{
     if(btn.dataset.tab==='pengurus') renderPengurusTab();
     if(btn.dataset.tab==='daftar') initDaftarTab();
     if(btn.dataset.tab==='edit') initEditTab();
+    if(btn.dataset.tab==='kelompok') initKelompokTab();
+    if(btn.dataset.tab==='struktur') renderStrukturTab();
+    if(btn.dataset.tab==='admin') initAdminTab();
   });
 });
 
@@ -1338,6 +1409,153 @@ document.getElementById('btnLogout').addEventListener('click', ()=>{
   location.reload();
 });
 checkGate();
+
+/* ---------- MUMI KELOMPOK ---------- */
+function initKelompokTab(){
+  document.getElementById('kelTanggal').value = todayStr();
+  document.getElementById('btnKelStart').onclick = ()=>{
+    const kelompok = document.getElementById('kelompokSelect').value;
+    if(!kelompok){alert('Pilih kelompok dulu!'); return;}
+    alert('✅ Sesi kelompok '+kelompok+' dimulai (fitur lengkap di update berikutnya)');
+  };
+}
+
+/* ---------- STRUKTUR PENGURUS ---------- */
+const KELOMPOK_STRUKTUR = ['Al Muhajirin','Bojong Koneng','Kamurang','Sanja','Sentul','Tarikolot'];
+const JABATAN_STRUKTUR = ['Ketua','Wakil','Penerobos','Sekertaris','Keuangan','Keputrian'];
+
+function renderStrukturTab(){
+  const STORE_STRUKTUR = 'mumi_struktur_v1';
+  let struktur = {};
+  try{ struktur = JSON.parse(localStorage.getItem(STORE_STRUKTUR)) || {}; }catch(e){}
+  
+  let html = '';
+  KELOMPOK_STRUKTUR.forEach(k=>{
+    const data = struktur[k] || {};
+    html += `<div style="background:var(--accent-soft);border-radius:10px;padding:12px;margin-bottom:12px;border-left:4px solid var(--accent);">
+      <h3 style="margin:0 0 10px;color:var(--accent-dark);font-size:14px;font-weight:700;">${k}</h3>`;
+    JABATAN_STRUKTUR.forEach(j=>{
+      html += `<div style="margin-bottom:8px;">
+        <label style="font-size:12px;font-weight:600;">${j}:</label>
+        <input type="text" id="struktur-${k}-${j}" value="${data[j]||''}" placeholder="Nama pengurus" style="width:100%;padding:8px;font-size:13px;border:1px solid var(--line);border-radius:8px;">
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  html += `<button class="btn" onclick="saveStrukturPengurus()" style="width:100%;margin-top:12px;">💾 Simpan Semua Struktur</button>`;
+  
+  document.getElementById('strukturContent').innerHTML = html;
+}
+
+function saveStrukturPengurus(){
+  const STORE_STRUKTUR = 'mumi_struktur_v1';
+  const struktur = {};
+  KELOMPOK_STRUKTUR.forEach(k=>{
+    struktur[k] = {};
+    JABATAN_STRUKTUR.forEach(j=>{
+      const val = document.getElementById(`struktur-${k}-${j}`).value.trim();
+      if(val) struktur[k][j] = val;
+    });
+  });
+  localStorage.setItem(STORE_STRUKTUR, JSON.stringify(struktur));
+  alert('✅ Struktur pengurus berhasil disimpan!');
+}
+
+/* ---------- ADMIN TAB ---------- */
+function initAdminTab(){
+  // Test Google Sheets connection
+  document.getElementById('btnTestSheet').onclick = ()=>{
+    const url = document.getElementById('sheetUrl').value.trim();
+    if(!url){
+      alert('Paste Google Apps Script URL terlebih dahulu!');
+      return;
+    }
+    
+    fetch(url, {
+      method: 'POST',
+      body: JSON.stringify({action: 'getAbsensi'})
+    }).then(r => r.json()).then(data => {
+      if(data.success){
+        alert('✅ Koneksi Google Sheets OK! Auto-sync sudah aktif.');
+        localStorage.setItem('mumi_sheet_url', url);
+      } else {
+        alert('❌ Gagal koneksi. Pastikan URL benar dan Google Apps Script sudah di-deploy.');
+      }
+    }).catch(err => {
+      alert('❌ Error: '+err.message);
+    });
+  };
+  
+  document.getElementById('btnExportFinal').onclick = ()=>{
+    const data = {
+      database: DB,
+      roster: ROSTER,
+      timestamp: new Date().toISOString()
+    };
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'mumi-backup-'+todayStr()+'.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    alert('✅ Backup downloaded!');
+  };
+  
+  document.getElementById('btnLogout').onclick = ()=>{
+    sessionStorage.removeItem(GATE_KEY);
+    location.reload();
+  };
+  
+  // Load saved Google Sheets URL
+  const savedUrl = localStorage.getItem('mumi_sheet_url');
+  if(savedUrl){
+    document.getElementById('sheetUrl').value = savedUrl;
+  }
+}
+
+/* ---------- GOOGLE SHEETS SYNC ---------- */
+function syncToGoogleSheets(nama, kelompok, status, jam){
+  const sheetUrl = localStorage.getItem('mumi_sheet_url');
+  if(!sheetUrl){
+    console.warn('Google Sheets URL belum dikonfigurasi');
+    return;
+  }
+  
+  const data = {
+    action: 'addAbsensi',
+    no: Date.now(),
+    tanggal: todayStr(),
+    nama: nama,
+    kelompok: kelompok,
+    status: status,
+    jam: jam,
+    keterangan: 'Auto-sync dari aplikasi'
+  };
+  
+  fetch(sheetUrl, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }).then(r => r.json()).then(result => {
+    if(result.success){
+      console.log('✅ Sync ke Google Sheets OK: '+nama);
+    }
+  }).catch(err => {
+    console.error('Error sync Google Sheets:', err);
+  });
+}
+
+/* ---------- OVERRIDE markAttendance untuk tambah sync ---------- */
+const originalMarkAttendance = markAttendance || function(){};
+function markAttendance(personId, status){
+  const result = originalMarkAttendance(personId, status);
+  if(result){
+    // Trigger Google Sheets sync
+    syncToGoogleSheets(result.n, result.k, status, nowTime());
+  }
+  return result;
+}
 
 /* ---------- INIT ---------- */
 initCetak();
