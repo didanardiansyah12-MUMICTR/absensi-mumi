@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Absensi MUMI v8 - Complete</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+:root{--bg:#f6f4ee;--card:#fff;--ink:#1f2a22;--ink-soft:#5c6a5f;--line:#e1ddd0;--accent:#2f6b4f;--accent-dark:#1e4a35;--accent-soft:#e6efe8;--warn:#b3691c;--warn-soft:#faeee0;--bad:#a13c3c;--bad-soft:#f8e8e6;--gray:#8a8a86;--gray-soft:#eeede8;}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink);padding-bottom:60px;}
+header{background:var(--accent-dark);color:#fff;padding:18px 16px 14px;position:sticky;top:0;z-index:20;}
+header h1{margin:0;font-size:18px;font-weight:600;}header p{margin:2px 0 0;font-size:12.5px;color:#cfe3d6;}
+nav{display:flex;gap:6px;margin-top:14px;background:rgba(255,255,255,0.12);padding:4px;border-radius:10px;overflow-x:auto;flex-wrap:wrap;}
+nav button{flex:0 0 auto;padding:9px 10px;border:none;background:transparent;color:#e4efe8;font-size:11px;font-weight:600;border-radius:8px;cursor:pointer;white-space:nowrap;}
+nav button.active{background:#fff;color:var(--accent-dark);}
+main{max-width:1000px;margin:0 auto;padding:16px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;}
+.card h2{margin:0 0 4px;font-size:15px;}.card .sub{color:var(--ink-soft);font-size:12.5px;margin:0 0 12px;}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}.row>*{flex:1;min-width:140px;}
+button.btn{padding:10px 16px;border-radius:9px;border:1px solid var(--accent);background:var(--accent);color:#fff;font-size:13.5px;font-weight:600;cursor:pointer;}
+button.btn.ghost{background:#fff;color:var(--accent-dark);}button.btn.danger{background:var(--bad);border-color:var(--bad);}
+select,input,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;background:#fff;color:var(--ink);margin-bottom:8px;}
+.statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:10px;margin-top:10px;}
+.stat{background:var(--gray-soft);border-radius:10px;padding:10px 12px;}.stat .num{font-size:22px;font-weight:700;line-height:1.1;}.stat .lbl{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+.stat.hadir{background:var(--accent-soft);}.stat.hadir .num{color:var(--accent-dark);}
+.hint{font-size:12px;color:var(--ink-soft);background:var(--gray-soft);border-radius:9px;padding:10px 12px;margin-top:10px;}
+.success-msg{background:var(--accent-soft);border:1px solid var(--accent);border-radius:10px;padding:12px 14px;color:var(--accent-dark);font-size:13px;margin-bottom:12px;display:none;}.success-msg.show{display:block;}
+#gate{position:fixed;inset:0;background:var(--accent-dark);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;}
+#gate .box{background:#fff;border-radius:16px;padding:26px 24px;max-width:340px;width:100%;text-align:center;}
+#gate .box h2{margin:0 0 4px;font-size:17px;color:var(--ink);} #gate input{margin-bottom:10px;text-align:center;letter-spacing:2px;}
+.struktur-box{background:var(--accent-soft);border-radius:10px;padding:12px;margin-bottom:10px;border-left:4px solid var(--accent);}
+.struktur-box h3{margin:0 0 10px;color:var(--accent-dark);font-size:14px;font-weight:700;}
+.form-group{margin-bottom:10px;}.form-group label{display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:var(--ink);} 
+.form-group input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin-bottom:0;}
+.badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;white-space:nowrap;}
+.badge.hadir{background:var(--accent-soft);color:var(--accent-dark);}
+#reader{width:100%;max-width:420px;margin:0 auto;border-radius:12px;overflow:hidden;}
+@media print{header,nav,.noprint{display:none!important;}body{background:#fff;padding:0;} main{max-width:100%;padding:0;}.card{border:none;padding:0;}}
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="box">
+    <div style="font-size:32px;margin-bottom:8px;">🔐</div>
+    <h2>Absensi MUMI v8</h2>
+    <p style="color:var(--ink-soft);font-size:12.5px;margin:0 0 16px;">Desa & Kelompok • Data Lengkap • Reset Sesi</p>
+    <div style="color:#a13c3c;font-size:12px;min-height:16px;margin-bottom:6px;" id="gateErr"></div>
+    <input type="password" id="gatePass" placeholder="Kata sandi">
+    <button class="btn" style="width:100%" id="btnGateEnter">Masuk</button>
+  </div>
+</div>
+
+<header>
+  <h1>📊 Absensi MUMI Citeureup v8</h1>
+  <p>Desa • Kelompok • Data Lengkap • Reset Sesi • Google Sheets</p>
+  <nav id="nav" class="noprint"></nav>
+</header>
+
+<main id="content"></main>
+
+<script>
+const STORE_KEY = 'mumi_v8_db';
+const GATE_KEY = 'mumi_gate_v8';
+const PASSWORD = 'MUMI2026';
+const WHATSAPP = '085641464205';
+const KELOMPOK = ['Al Muhajirin','Bojong Koneng','Kamurang','Sanja','Sentul','Tarikolot'];
+const JABATAN = ['Ketua','Wakil','Penerobos','Sekertaris','Keuangan','Keputrian'];
+
+// PENGURUS DESA (struktur tetap, ditampilkan)
+const PENGURUS_DESA = {
+  'Ketua': {id: 74, nama: 'Didan Ardiansyah'},
+  'Wakil 1': {id: 50, nama: 'Ferdinan Muhamad Rofik'},
+  'Wakil 2': {id: 96, nama: 'Muhammad Rafli Yanwar'},
+  'Sekertaris': {id: 10, nama: 'Muhammad Fajar Nurhasan'},
+  'Bendahara': {id: 62, nama: 'Addina Uswatun Hasanah'},
+  'Penerobos 1': {id: 9, nama: 'Maulana Mudzakir Jamil'},
+  'Penerobos 2': {id: 43, nama: 'Muhammad Akmal Jannatan'},
+  'Penerobos 3': {id: 39, nama: 'Romadhona Fajri Asadulloh'},
+  'Kemandirian': {id: 111, nama: 'Kenny Perdana Sakti'},
+  'Keputrian': {id: 72, nama: 'Nurnadilah'},
+  'Keilmuan': {id: 7, nama: 'Ahmad Adi Putra'}
+};
+
+const __ROSTER_DATA__=[{i:1,k:"Al Muhajirin",n:"Nourazmil Birrul Akhyar",jk:"Laki-laki"},{i:2,k:"Al Muhajirin",n:"Fuad Suaidy",jk:"Laki-laki"},{i:3,k:"Al Muhajirin",n:"Naufal Hassan",jk:"Laki-laki"},{i:4,k:"Al Muhajirin",n:"Rifqi Fadholi Noor",jk:"Laki-laki"},{i:5,k:"Al Muhajirin",n:"Nourman Hizqil Salam",jk:"Laki-laki"},{i:6,k:"Al Muhajirin",n:"Nizar Almas Fathani",jk:"Laki-laki"},{i:7,k:"Al Muhajirin",n:"Ahmad Adi Putra",jk:"Laki-laki"},{i:8,k:"Al Muhajirin",n:"Muhammad Izatu Muttaqin",jk:"Laki-laki"},{i:9,k:"Al Muhajirin",n:"Maulana Mudzakir Jamil",jk:"Laki-laki"},{i:10,k:"Al Muhajirin",n:"Muhammad Fajar Nurhasan",jk:"Laki-laki"},{i:11,k:"Al Muhajirin",n:"Naufal Deandra",jk:"Laki-laki"},{i:12,k:"Al Muhajirin",n:"Adhima Ibnu Shofa",jk:"Laki-laki"},{i:13,k:"Al Muhajirin",n:"Ikhwatun Tamimi",jk:"Perempuan"},{i:14,k:"Al Muhajirin",n:"Diana Alfi Fariza",jk:"Perempuan"},{i:15,k:"Al Muhajirin",n:"Octafia Anggi Fratista",jk:"Perempuan"},{i:16,k:"Al Muhajirin",n:"Arinta Prameswari",jk:"Perempuan"},{i:17,k:"Al Muhajirin",n:"Winda Nurfaiza",jk:"Perempuan"},{i:18,k:"Al Muhajirin",n:"Norasauri Lathifa Rizqy",jk:"Perempuan"},{i:19,k:"Al Muhajirin",n:"Devita Larasati",jk:"Perempuan"},{i:20,k:"Al Muhajirin",n:"Dini Imelyani",jk:"Perempuan"},{i:21,k:"Al Muhajirin",n:"Ferna Lis Nurfadhila",jk:"Perempuan"},{i:22,k:"Al Muhajirin",n:"Naura Aisha Farrin",jk:"Perempuan"},{i:23,k:"Al Muhajirin",n:"Amalia Fitri Ramadhani",jk:"Perempuan"},{i:24,k:"Al Muhajirin",n:"Afwa Inandita",jk:"Perempuan"},{i:25,k:"Al Muhajirin",n:"Alfira Pramesti",jk:"Perempuan"},{i:26,k:"Al Muhajirin",n:"Chika Mafayza",jk:"Perempuan"},{i:27,k:"Bojong Koneng",n:"Rizki Aditiya Kurniawan",jk:"Laki-laki"},{i:28,k:"Bojong Koneng",n:"Alfito Noval Rivaldo",jk:"Laki-laki"},{i:29,k:"Bojong Koneng",n:"Al Fawwaz Juliansyah Wibowo",jk:"Laki-laki"},{i:30,k:"Bojong Koneng",n:"Muhammad Kevin Aldiano",jk:"Laki-laki"},{i:31,k:"Bojong Koneng",n:"Candra",jk:"Laki-laki"},{i:32,k:"Bojong Koneng",n:"Andrew Setiawan",jk:"Laki-laki"},{i:33,k:"Bojong Koneng",n:"Zaskia Zaneta Aulia Silva",jk:"Perempuan"},{i:34,k:"Bojong Koneng",n:"Cerry Rachquelita",jk:"Perempuan"},{i:35,k:"Bojong Koneng",n:"Aura Auliana Silva",jk:"Perempuan"},{i:36,k:"Bojong Koneng",n:"Aprinia Della",jk:"Perempuan"},{i:37,k:"Kamurang",n:"Apeng",jk:"Laki-laki"},{i:38,k:"Kamurang",n:"Ahmad Kamilludin Hidayah",jk:"Laki-laki"},{i:39,k:"Kamurang",n:"Romadhona Fajri Asadulloh",jk:"Laki-laki"},{i:40,k:"Kamurang",n:"M. Farkhan Ulul Azmi",jk:"Laki-laki"},{i:41,k:"Kamurang",n:"Miftahul Rizky Ilham",jk:"Laki-laki"},{i:42,k:"Kamurang",n:"Diego Satria Mandala",jk:"Laki-laki"},{i:43,k:"Kamurang",n:"Muhammad Akmal Jannatan",jk:"Laki-laki"},{i:44,k:"Kamurang",n:"Muhammad Fauza Albukhori",jk:"Laki-laki"},{i:45,k:"Kamurang",n:"Ahmad saifulloh",jk:"Laki-laki"},{i:46,k:"Kamurang",n:"Gabril Idhfi Almaidah",jk:"Laki-laki"},{i:47,k:"Kamurang",n:"Zidan",jk:"Laki-laki"},{i:48,k:"Kamurang",n:"Ipung",jk:"Laki-laki"},{i:49,k:"Kamurang",n:"Muhammad Lutfi Alamsyah",jk:"Laki-laki"},{i:50,k:"Kamurang",n:"Ferdinan Muhamad Rofik",jk:"Laki-laki"},{i:51,k:"Kamurang",n:"Muhammad Catur Pamungkas",jk:"Laki-laki"},{i:52,k:"Kamurang",n:"Muhammad Sahlan Kayyisa",jk:"Laki-laki"},{i:53,k:"Kamurang",n:"Humaira Jamila",jk:"Perempuan"},{i:54,k:"Kamurang",n:"Novita Nurbaiti",jk:"Perempuan"},{i:55,k:"Kamurang",n:"Melia Cahya Utami",jk:"Perempuan"},{i:56,k:"Kamurang",n:"Sabita Zifani Malika",jk:"Perempuan"},{i:57,k:"Kamurang",n:"Naura Jihada Masiyana",jk:"Perempuan"},{i:58,k:"Kamurang",n:"Listya Yesti Kamilatunnisa",jk:"Perempuan"},{i:59,k:"Kamurang",n:"Auliawati Nur Fadillah",jk:"Perempuan"},{i:60,k:"Kamurang",n:"Yusriani Palupiningtyas (Iyuk)",jk:"Perempuan"},{i:61,k:"Kamurang",n:"Mery Khirotul Aini",jk:"Perempuan"},{i:62,k:"Kamurang",n:"Addina Uswatun Hasanah",jk:"Perempuan"},{i:63,k:"Kamurang",n:"Kania Fadhilah Agustina",jk:"Perempuan"},{i:64,k:"Kamurang",n:"Zahra Roudhotul Jannah",jk:"Perempuan"},{i:65,k:"Kamurang",n:"Agnesia Bunga Cleopatra",jk:"Perempuan"},{i:66,k:"Kamurang",n:"Bunga Fitria Nazala Firdaus",jk:"Perempuan"},{i:67,k:"Kamurang",n:"Azlia Zahra Sholehah",jk:"Perempuan"},{i:68,k:"Kamurang",n:"Iqlima Tazkiyatun Nufus",jk:"Perempuan"},{i:69,k:"Kamurang",n:"Amelia Anggita Pertiwi",jk:"Perempuan"},{i:70,k:"Kamurang",n:"Atina Salma Fiddini",jk:"Perempuan"},{i:71,k:"Kamurang",n:"Ulfa Fawzia",jk:"Perempuan"},{i:72,k:"Kamurang",n:"Nurnadilah",jk:"Perempuan"},{i:73,k:"Kamurang",n:"Ina Elfita Rahmawati",jk:"Perempuan"},{i:74,k:"Sanja",n:"Didan Ardiansyah",jk:"Laki-laki"},{i:75,k:"Sanja",n:"Naufal Faiz Yonayulita",jk:"Laki-laki"},{i:76,k:"Sanja",n:"Naoval Sadewo",jk:"Laki-laki"},{i:77,k:"Sanja",n:"Muhammad Syabani",jk:"Laki-laki"},{i:78,k:"Sanja",n:"Hilman Rosyad",jk:"Laki-laki"},{i:79,k:"Sanja",n:"Agung Hidayat Firmansyah",jk:"Laki-laki"},{i:80,k:"Sanja",n:"Royan Adiansyah",jk:"Laki-laki"},{i:81,k:"Sanja",n:"Muhammad Burhan Triwibowo",jk:"Laki-laki"},{i:82,k:"Sanja",n:"Muhammad Zakiy Abdillah",jk:"Laki-laki"},{i:83,k:"Sanja",n:"Faza Asyahri Ramdan",jk:"Laki-laki"},{i:84,k:"Sanja",n:"Amelia Febriana",jk:"Perempuan"},{i:85,k:"Sanja",n:"Renita Kurniawati",jk:"Perempuan"},{i:86,k:"Sanja",n:"Shelvia Ariani Indrianita",jk:"Perempuan"},{i:87,k:"Sanja",n:"Rajwa Nafisah",jk:"Perempuan"},{i:88,k:"Sentul",n:"Febrian Rasyadan Sidiq",jk:"Laki-laki"},{i:90,k:"Sentul",n:"Hasan Jaelani",jk:"Laki-laki"},{i:91,k:"Sentul",n:"Ferdiansyah Rizki Rohmatulloh",jk:"Laki-laki"},{i:92,k:"Sentul",n:"Vernando Dwi Oktaviano",jk:"Laki-laki"},{i:93,k:"Sentul",n:"Aji Purnomo",jk:"Laki-laki"},{i:94,k:"Sentul",n:"Hanif Qomarudin Mulyaputra",jk:"Laki-laki"},{i:95,k:"Sentul",n:"Andika Adityia",jk:"Laki-laki"},{i:96,k:"Sentul",n:"Muhammad Rafli Yanwar",jk:"Laki-laki"},{i:97,k:"Sentul",n:"Andreana Dafi Musafalutfi",jk:"Laki-laki"},{i:98,k:"Sentul",n:"Dillon Hisyam Wijaya",jk:"Laki-laki"},{i:99,k:"Sentul",n:"Siti Wulan",jk:"Perempuan"},{i:100,k:"Sentul",n:"Annisa Sintania",jk:"Perempuan"},{i:101,k:"Sentul",n:"Josallyn Azka Kadiarrahman",jk:"Perempuan"},{i:102,k:"Sentul",n:"Early Raihanah Shahada",jk:"Perempuan"},{i:103,k:"Sentul",n:"Yanti Mardhiyanti",jk:"Perempuan"},{i:104,k:"Sentul",n:"Yuyun Nurul Afifah",jk:"Perempuan"},{i:105,k:"Sentul",n:"Luluk Wardani",jk:"Perempuan"},{i:106,k:"Sentul",n:"Syifa Nurul Fatah",jk:"Perempuan"},{i:107,k:"Sentul",n:"Dr. Andi Elsa Fadhilah Sakti, S.S., M.Hum.",jk:"Perempuan"},{i:108,k:"Sentul",n:"Vivi Lavelia",jk:"Perempuan"},{i:109,k:"Sentul",n:"Elsa Fauzia Meilani",jk:"Perempuan"},{i:110,k:"Sentul",n:"Andini Septiani",jk:"Perempuan"},{i:111,k:"Tarikolot",n:"Kenny Perdana Sakti",jk:"Laki-laki"},{i:112,k:"Tarikolot",n:"Yusron Yoko Alfian",jk:"Laki-laki"},{i:113,k:"Tarikolot",n:"Alaufa Rafahim",jk:"Laki-laki"},{i:114,k:"Tarikolot",n:"Alvin Agilian M",jk:"Laki-laki"},{i:115,k:"Tarikolot",n:"Rizky Muhammad Saputa",jk:"Laki-laki"},{i:116,k:"Tarikolot",n:"Yusrina Yoko Meilawati",jk:"Perempuan"},{i:117,k:"Tarikolot",n:"Putri Aprilia",jk:"Perempuan"},{i:118,k:"Tarikolot",n:"Fania Awalia Nurmaila",jk:"Perempuan"},{i:119,k:"Tarikolot",n:"Airin Putri Yani",jk:"Perempuan"},{i:120,k:"Sanja",n:"Hari Septian Maulana",jk:"Laki-laki"},{i:121,k:"Sanja",n:"Fiona Azzahra",jk:"Perempuan"}];
+const ROSTER = __ROSTER_DATA__;
+
+function loadDB(){try{return JSON.parse(localStorage.getItem(STORE_KEY));}catch(e){} return {desa:{}, struktur:{}};}
+function saveDB(){localStorage.setItem(STORE_KEY,JSON.stringify(DB));}
+let DB = loadDB();
+
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function nowTime(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+
+// LOGIN
+document.getElementById('btnGateEnter').addEventListener('click',()=>{
+  if(document.getElementById('gatePass').value===PASSWORD){
+    sessionStorage.setItem(GATE_KEY,'1');
+    document.getElementById('gate').style.display='none';
+    initApp();
+  }else{
+    document.getElementById('gateErr').textContent='❌ Kata sandi salah';
+  }
+});
+document.getElementById('gatePass').addEventListener('keydown',(e)=>{if(e.key==='Enter')document.getElementById('btnGateEnter').click();});
+
+if(sessionStorage.getItem(GATE_KEY)==='1'){
+  document.getElementById('gate').style.display='none';
+  initApp();
+}
+
+function initApp(){
+  renderNav();
+  showTab('desa');
+}
+
+function renderNav(){
+  const nav=document.getElementById('nav');
+  const tabs=[
+    {id:'desa',label:'🏘️ MUMI Desa'},
+    {id:'struktur',label:'⚙️ Struktur'},
+    {id:'admin',label:'ℹ️ Admin'},
+  ];
+  nav.innerHTML=tabs.map(t=>`<button class="nav-btn noprint" data-tab="${t.id}">${t.label}</button>`).join('');
+  document.querySelectorAll('.nav-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      showTab(btn.dataset.tab);
+    });
+  });
+  document.querySelector('[data-tab="desa"]').classList.add('active');
+}
+
+function showTab(tab){
+  const content=document.getElementById('content');
+  
+  if(tab==='desa'){
+    content.innerHTML=`<div class="card">
+      <h2>🏘️ MUMI Desa - Setup Sesi</h2>
+      <p class="sub">Mulai sesi absensi untuk pengajian bulanan</p>
+      <div class="row">
+        <input type="date" id="desaTanggal" value="${todayStr()}">
+        <input type="text" id="desaNama" placeholder="Nama kegiatan">
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="btn" id="btnDesaStart">▶ MULAI SESI</button>
+        <button class="btn ghost danger" id="btnDesaReset" style="display:none;">🔄 RESET SESI (Test/Libur)</button>
+      </div>
+      <div id="desaStatus" style="margin-top:12px;"></div>
+      <div id="desaContent" style="margin-top:12px;"></div>
+    </div>
+    
+    <div class="card">
+      <h2>👥 Pengurus MUMI Desa (Struktur Tetap)</h2>
+      <p class="sub">Struktur pengurus desa - tidak bisa diubah dari sini</p>
+      <div id="pengurusDesa"></div>
+    </div>`;
+    
+    renderPengurusDesa();
+    setupDesaSession();
+  }
+  
+  else if(tab==='struktur'){
+    content.innerHTML=`<div class="card">
+      <h2>⚙️ Struktur Pengurus MUMI Kelompok</h2>
+      <p class="sub">Edit nama pengurus untuk setiap kelompok (hanya pengurus MUMI Desa)</p>
+      <div class="success-msg" id="successStrukt"></div>
+      <div id="strukturContent"></div>
+    </div>`;
+    
+    renderStrukturKelompok();
+  }
+  
+  else if(tab==='admin'){
+    content.innerHTML=`<div class="card">
+      <h2>ℹ️ Admin & Google Sheets</h2>
+      <p class="sub">Setup Google Sheets sync, backup, atau logout</p>
+      <h3 style="color:var(--accent-dark);margin:14px 0 10px;font-size:14px;">🔗 Google Sheets</h3>
+      <input type="text" id="sheetUrl" placeholder="Paste Google Apps Script URL">
+      <button class="btn" id="btnTestSheet">✔️ Uji Koneksi</button>
+      <div class="hint">Lihat panduan GOOGLE_SHEETS_SETUP_GUIDE.md untuk setup</div>
+      
+      <h3 style="color:var(--accent-dark);margin:14px 0 10px;font-size:14px;">📱 Chat Admin</h3>
+      <a href="https://wa.me/6285641464205?text=Halo%20admin%20MUMI" target="_blank" style="display:block;text-align:center;background:var(--accent);color:#fff;padding:14px;border-radius:9px;text-decoration:none;font-weight:600;margin-bottom:12px;">📱 WhatsApp (085641464205)</a>
+      
+      <h3 style="color:var(--accent-dark);margin:14px 0 10px;font-size:14px;">💾 Backup</h3>
+      <button class="btn ghost" id="btnExport">📥 Export Semua Data</button>
+      <button class="btn ghost" id="btnLogout" style="margin-top:8px;">🚪 Keluar</button>
+    </div>`;
+    
+    setupAdmin();
+  }
+}
+
+function renderPengurusDesa(){
+  let html='<div style="background:var(--accent-soft);border-radius:10px;padding:12px;">';
+  Object.entries(PENGURUS_DESA).forEach(([jabatan,data])=>{
+    html+=`<div style="margin-bottom:8px;"><strong>${jabatan}:</strong> ${data.nama} (ID: ${data.id})</div>`;
+  });
+  html+='</div>';
+  document.getElementById('pengurusDesa').innerHTML=html;
+}
+
+function renderStrukturKelompok(){
+  let html='';
+  KELOMPOK.forEach(k=>{
+    const data=DB.struktur[k]||{};
+    html+=`<div class="struktur-box"><h3>${k}</h3>`;
+    JABATAN.forEach(j=>{
+      html+=`<div class="form-group">
+        <label>${j}:</label>
+        <input type="text" id="struktur-${k}-${j}" value="${data[j]||''}" placeholder="Nama pengurus">
+      </div>`;
+    });
+    html+=`</div>`;
+  });
+  html+=`<button class="btn" onclick="saveStrukturKelompok()" style="width:100%;">💾 Simpan Semua Struktur</button>`;
+  document.getElementById('strukturContent').innerHTML=html;
+}
+
+function saveStrukturKelompok(){
+  const struktur={};
+  KELOMPOK.forEach(k=>{
+    struktur[k]={};
+    JABATAN.forEach(j=>{
+      const val=document.getElementById(`struktur-${k}-${j}`).value.trim();
+      if(val) struktur[k][j]=val;
+    });
+  });
+  DB.struktur=struktur;
+  saveDB();
+  const msg=document.getElementById('successStrukt');
+  msg.innerHTML='✅ Struktur pengurus berhasil disimpan!';
+  msg.classList.add('show');
+  setTimeout(()=>msg.classList.remove('show'),3000);
+}
+
+function setupDesaSession(){
+  document.getElementById('btnDesaStart').onclick=()=>{
+    const tgl=document.getElementById('desaTanggal').value;
+    const nm=document.getElementById('desaNama').value||'Pengajian Desa';
+    
+    if(!DB.desa) DB.desa={};
+    if(!DB.desa[tgl]) DB.desa[tgl]={nama:nm,aktif:true,records:{}};
+    else DB.desa[tgl].aktif=true;
+    
+    DB.desa[tgl].nama=nm;
+    saveDB();
+    
+    document.getElementById('btnDesaStart').style.display='none';
+    document.getElementById('btnDesaReset').style.display='block';
+    
+    const status=document.getElementById('desaStatus');
+    status.innerHTML=`<div style="background:var(--accent-soft);border-radius:10px;padding:12px;color:var(--accent-dark);">✅ <b>SESI AKTIF:</b> ${nm} - ${tgl}</div>`;
+    
+    document.getElementById('desaContent').innerHTML=`
+      <div style="margin-top:12px;">
+        <p style="color:var(--ink-soft);font-size:12px;">Fitur scan absensi akan ditambahkan di update berikutnya. Untuk sekarang, struktur & admin sudah ready!</p>
+      </div>`;
+  };
+  
+  document.getElementById('btnDesaReset').onclick=()=>{
+    if(!confirm('Reset sesi hari ini? (untuk test atau jika ternyata libur)')) return;
+    
+    const tgl=document.getElementById('desaTanggal').value;
+    if(DB.desa && DB.desa[tgl]) {
+      DB.desa[tgl].aktif=false;
+      DB.desa[tgl].records={};
+    }
+    saveDB();
+    
+    alert('✅ Sesi di-reset. Bisa mulai ulang lagi.');
+    location.reload();
+  };
+}
+
+function setupAdmin(){
+  document.getElementById('btnTestSheet').onclick=()=>{
+    const url=document.getElementById('sheetUrl').value.trim();
+    if(!url){alert('Paste URL terlebih dahulu!');return;}
+    
+    fetch(url,{method:'POST',body:JSON.stringify({action:'getAbsensi'})})
+      .then(r=>r.json())
+      .then(data=>{
+        if(data.success){
+          alert('✅ Google Sheets Connected!');
+          localStorage.setItem('mumi_sheet_url',url);
+        }else{
+          alert('❌ Connection failed');
+        }
+      }).catch(err=>alert('❌ '+err.message));
+  };
+  
+  document.getElementById('btnExport').onclick=()=>{
+    const data={roster:ROSTER, db:DB, timestamp:new Date().toISOString()};
+    const json=JSON.stringify(data,null,2);
+    const blob=new Blob([json],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download='mumi-backup-'+todayStr()+'.json';
+    a.click();
+  };
+  
+  document.getElementById('btnLogout').onclick=()=>{
+    sessionStorage.removeItem(GATE_KEY);
+    location.reload();
+  };
+  
+  const savedUrl=localStorage.getItem('mumi_sheet_url');
+  if(savedUrl) document.getElementById('sheetUrl').value=savedUrl;
+}
+
+</script>
+</body>
+</html>
