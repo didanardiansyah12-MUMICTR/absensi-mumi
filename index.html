@@ -444,6 +444,16 @@
       <input type="date" id="sesiTanggal">
       <input type="text" id="sesiNama" placeholder="Nama kegiatan (opsional), contoh: Pengajian Rutin">
     </div>
+    <div class="row" style="margin-top:8px;">
+      <div style="flex:1; min-width:140px;">
+        <label style="font-size:12px; color:var(--ink-soft); display:block; margin-bottom:4px;">⏰ Tutup otomatis jam (opsional)</label>
+        <input type="time" id="sesiAutoTutupJam">
+      </div>
+      <div style="flex:1; min-width:140px; display:flex; align-items:flex-end;">
+        <div id="autoTutupStatus" style="font-size:12px; color:var(--ink-soft);"></div>
+      </div>
+    </div>
+    <div class="hint" style="margin-top:6px;">Kalau diisi, sesi hari ini otomatis ditutup sendiri tepat di jam itu (yang belum absen jadi Alpa) — jadi kamu tidak perlu ingat matiin manual.</div>
     <div class="statgrid" id="scanStats"></div>
   </div>
 
@@ -786,9 +796,11 @@
     <p class="sub">Setup Google Sheets sync, hubungi admin, atau export data</p>
     
     <h3 style="color:var(--accent-dark);margin:14px 0 10px;font-size:14px;">🔗 Google Sheets Sync</h3>
-    <input type="text" id="sheetUrl" placeholder="Paste Google Apps Script URL (dari Deploy Web App)" style="margin-bottom:8px;">
-    <button class="btn" id="btnTestSheet" style="width:100%;margin-bottom:10px;">✔️ Uji Koneksi Google Sheets</button>
-    <div class="hint">📌 Setup: buat Google Sheet → Tools > Script Editor → paste kode dari GOOGLE_APPS_SCRIPT.gs → Deploy Web App → copy URL → paste di sini.</div>
+    <div class="hint" style="margin-bottom:10px;">✅ Aplikasi ini sudah otomatis tersambung ke Google Sheets bawaan — tidak perlu setting apa-apa. Kolom di bawah HANYA dipakai kalau suatu saat mau ganti ke Google Sheets lain.</div>
+    <input type="text" id="sheetUrl" placeholder="(opsional) paste URL lain untuk ganti Sheets bawaan" style="margin-bottom:8px;">
+    <button class="btn" id="btnTestSheet" style="width:100%;margin-bottom:6px;">✔️ Uji Koneksi Google Sheets</button>
+    <div id="syncStatusBadge" style="font-size:12px; font-weight:600; margin-bottom:10px; min-height:16px;"></div>
+    <div class="hint">📌 Semua HP pengurus otomatis saling ter-update data absennya tiap ±5 detik, walau HP lain tiba-tiba mati (data sudah aman tersimpan di Sheets).</div>
     
     <h3 style="color:var(--accent-dark);margin:14px 0 10px;font-size:14px;">📱 Chat Admin</h3>
     <a href="https://wa.me/6285641464205?text=Halo%20admin%20MUMI%20Citeureup.%20Saya%20ingin%20daftar%2Fedit%20anggota%20atau%20laporkan%20masalah" target="_blank" style="display:block; text-align:center; background:var(--accent); color:#fff; padding:14px; border-radius:9px; text-decoration:none; font-weight:600; margin-bottom:12px; font-size:14px;">
@@ -861,6 +873,16 @@ const JABATAN_ORDER = ['Ketua','Wakil 1','Wakil 2','Sekertaris','Bendahara','Pen
 const STORE_KEY = 'mumi_absensi_v1';
 const ROSTER_KEY = 'mumi_roster_v1';
 const KELOMPOK_ORDER = ['Al Muhajirin','Bojong Koneng','Kamurang','Sanja','Sentul','Tarikolot'];
+
+// URL Google Apps Script bawaan, sudah tertanam di kode -> semua HP yang buka
+// aplikasi ini otomatis konek ke Google Sheets yang sama, TANPA perlu paste
+// manual di tab Admin. Kalau suatu saat mau ganti Sheets, paste URL baru di
+// tab Admin, itu akan dipakai (override) menggantikan default ini.
+const DEFAULT_SHEET_URL = 'https://script.google.com/macros/s/AKfycbypiftm3EvZBnHqpLACvFrX4Pmh97r5OqWbN2WtpWboIkTsxnmbqHoqPmNPiUko5eVwpA/exec';
+
+function getSheetUrl(){
+  return localStorage.getItem('mumi_sheet_url') || DEFAULT_SHEET_URL;
+}
 
 function todayStr(){
   const d = new Date();
@@ -1365,6 +1387,14 @@ function initScan(){
     const s = ensureSession(currentSessionKey);
     s.nama = e.target.value;
     saveDB();
+    syncSesiConfig();
+  });
+  document.getElementById('sesiAutoTutupJam').addEventListener('change', (e)=>{
+    const s = ensureSession(currentSessionKey);
+    s.autoTutupJam = e.target.value;
+    saveDB();
+    syncSesiConfig();
+    renderAutoTutupStatus();
   });
   document.getElementById('btnStartScan').addEventListener('click', startScanner);
   document.getElementById('btnStopScan').addEventListener('click', stopScanner);
@@ -1375,8 +1405,79 @@ function renderScanTab(){
   currentSessionKey = document.getElementById('sesiTanggal').value || todayStr();
   const s = ensureSession(currentSessionKey);
   document.getElementById('sesiNama').value = s.nama || '';
+  document.getElementById('sesiAutoTutupJam').value = s.autoTutupJam || '';
   renderScanStats();
   renderManualList();
+  renderAutoTutupStatus();
+}
+
+function renderAutoTutupStatus(){
+  const el = document.getElementById('autoTutupStatus');
+  if(!el) return;
+  const s = ensureSession(currentSessionKey);
+  if(s.closed){
+    el.textContent = '🔒 Sesi sudah ditutup';
+    el.style.color = 'var(--bad)';
+  } else if(s.autoTutupJam){
+    el.textContent = '⏰ Akan tertutup otomatis jam '+s.autoTutupJam;
+    el.style.color = 'var(--warn)';
+  } else {
+    el.textContent = '';
+  }
+}
+
+/**
+ * Kirim jam auto-tutup + nama sesi ke Google Sheets, supaya SEMUA HP
+ * (bukan cuma HP yang mengaturnya) tahu jam target tutup sesi ini.
+ */
+function syncSesiConfig(){
+  const sheetUrl = getSheetUrl();
+  if(!sheetUrl) return;
+  const s = ensureSession(currentSessionKey);
+  fetch(sheetUrl, {
+    method:'POST',
+    body: JSON.stringify({
+      action:'setSesiConfig',
+      sesiKey: currentSessionKey,
+      namaKegiatan: s.nama||'',
+      autoTutupJam: s.autoTutupJam||'',
+      closed: !!s.closed
+    })
+  }).catch(err=>console.error('Gagal sync config sesi:', err));
+}
+
+/**
+ * Cek: apakah sesi ini sudah waktunya ditutup otomatis?
+ * Dipanggil tiap kali auto-pull jalan (tiap 5 detik), untuk sesi absensi umum
+ * yang sedang dibuka di layar HP ini.
+ */
+function cekDanTutupOtomatis(sesiKey, session){
+  if(!session || session.closed || !session.autoTutupJam) return false;
+  const now = new Date();
+  const jamSekarang = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  if(jamSekarang < session.autoTutupJam) return false;
+
+  // Waktunya tutup: tandai yang belum absen jadi Alpa, lalu closed = true
+  ROSTER.forEach(p=>{ if(!session.records[p.i]) session.records[p.i] = {status:'Alpa', time:''}; });
+  session.closed = true;
+  saveDB();
+  syncSesiConfigFor(sesiKey, session);
+  return true;
+}
+
+function syncSesiConfigFor(sesiKey, session){
+  const sheetUrl = getSheetUrl();
+  if(!sheetUrl) return;
+  fetch(sheetUrl, {
+    method:'POST',
+    body: JSON.stringify({
+      action:'setSesiConfig',
+      sesiKey: sesiKey,
+      namaKegiatan: session.nama||'',
+      autoTutupJam: session.autoTutupJam||'',
+      closed: true
+    })
+  }).catch(err=>console.error('Gagal sync config sesi:', err));
 }
 
 function renderScanStats(){
@@ -1419,7 +1520,7 @@ function markAttendance(personId, status){
   saveDB();
   renderScanStats();
   renderManualList();
-  syncToGoogleSheets(p.n, p.k, status, nowTime()); // Auto-sync ke Google Sheets
+  syncToGoogleSheets(personId, p.n, p.k, status, nowTime(), currentSessionKey); // Auto-sync ke Google Sheets
   return p;
 }
 
@@ -1543,6 +1644,7 @@ function initRekap(){
     ROSTER.forEach(p=>{ if(!s.records[p.i]) s.records[p.i] = {status:'Alpa', time:''}; });
     s.closed = true;
     saveDB();
+    syncSesiConfigFor(key, s);
     renderRekapTab();
   });
   document.getElementById('btnCetakRekap').addEventListener('click', ()=>window.print());
@@ -1837,7 +1939,7 @@ function markKelAttendance(personId, status){
   saveDB();
   renderKelStats();
   renderKelManualList();
-  syncToGoogleSheets(p.n, p.k+' (Kelompok)', status, nowTime());
+  syncToGoogleSheets(personId, p.n, p.k+' (Kelompok)', status, nowTime(), currentKelKey);
   return p;
 }
 
@@ -2465,6 +2567,7 @@ function initAdminTab(){
       if(data.success){
         alert('✅ Koneksi Google Sheets OK! Auto-sync sudah aktif.');
         localStorage.setItem('mumi_sheet_url', url);
+        startAutoSync();
       } else {
         alert('❌ Gagal koneksi. Pastikan URL benar dan Google Apps Script sudah di-deploy.');
       }
@@ -2501,42 +2604,195 @@ function initAdminTab(){
   }
 }
 
-/* ---------- GOOGLE SHEETS SYNC ---------- */
-function syncToGoogleSheets(nama, kelompok, status, jam){
-  const sheetUrl = localStorage.getItem('mumi_sheet_url');
+/* ---------- GOOGLE SHEETS SYNC (PUSH) ---------- */
+// Dipanggil setiap kali ada 1 orang di-absen di HP ini -> dikirim ke Sheets
+// supaya HP lain bisa menariknya lewat pullFromGoogleSheets()
+function syncToGoogleSheets(personId, nama, kelompok, status, jam, tanggalKey){
+  const sheetUrl = getSheetUrl();
   if(!sheetUrl){
     console.warn('Google Sheets URL belum dikonfigurasi');
     return;
   }
-  
+
   const data = {
     action: 'addAbsensi',
-    no: Date.now(),
-    tanggal: todayStr(),
+    personId: personId,
+    tanggal: tanggalKey || todayStr(),
     nama: nama,
     kelompok: kelompok,
     status: status,
     jam: jam,
     keterangan: 'Auto-sync dari aplikasi'
   };
-  
+
   fetch(sheetUrl, {
     method: 'POST',
     body: JSON.stringify(data)
   }).then(r => r.json()).then(result => {
     if(result.success){
       console.log('✅ Sync ke Google Sheets OK: '+nama);
+      updateSyncStatusBadge(true);
+    } else {
+      console.warn('⚠️ Gagal sync: '+(result.error||''));
+      updateSyncStatusBadge(false);
     }
   }).catch(err => {
     console.error('Error sync Google Sheets:', err);
+    updateSyncStatusBadge(false);
   });
 }
+
+/* ---------- GOOGLE SHEETS PULL (AUTO-REFRESH ANTAR HP) ---------- */
+// Ambil semua data absen milik sesi (tanggalKey) yang lagi aktif di layar HP ini,
+// lalu gabungkan ke DB lokal. Ini yang bikin data "ke-update" walau dicatat dari HP lain.
+let isPulling = false;
+function pullFromGoogleSheets(tanggalKey){
+  const sheetUrl = getSheetUrl();
+  if(!sheetUrl || isPulling) return;
+  isPulling = true;
+
+  fetch(sheetUrl, {
+    method: 'POST',
+    body: JSON.stringify({ action:'getAbsensi', tanggal: tanggalKey })
+  }).then(r => r.json()).then(result => {
+    isPulling = false;
+    if(!result.success || !Array.isArray(result.data)) { updateSyncStatusBadge(false); return; }
+
+    let adaPerubahan = false;
+
+    result.data.forEach(rec => {
+      const pid = parseInt(rec.personId, 10);
+      if(!pid) return;
+
+      // Tentukan sesi tujuan: kalau kelompok mengandung "(Kelompok)" simpan ke kelompokSessions,
+      // selain itu ke sessions biasa (absensi umum pengajian).
+      const isKelompokSesi = (rec.kelompok||'').includes('(Kelompok)');
+      let targetSession;
+      if(isKelompokSesi){
+        if(!DB.kelompokSessions) DB.kelompokSessions = {};
+        if(!DB.kelompokSessions[rec.tanggal]) DB.kelompokSessions[rec.tanggal] = { nama:'', closed:false, records:{} };
+        targetSession = DB.kelompokSessions[rec.tanggal];
+      } else {
+        targetSession = ensureSession(rec.tanggal);
+      }
+
+      const existing = targetSession.records[pid];
+      // Hanya update kalau belum ada, atau data dari Sheets lebih baru (beda status/jam)
+      if(!existing || existing.status !== rec.status || existing.time !== rec.jam){
+        targetSession.records[pid] = { status: rec.status, time: rec.jam };
+        adaPerubahan = true;
+      }
+    });
+
+    if(adaPerubahan){
+      saveDB();
+      // Refresh tampilan yang lagi kebuka, biar user langsung lihat update-nya
+      if(typeof renderScanStats === 'function') renderScanStats();
+      if(typeof renderManualList === 'function') renderManualList();
+      if(typeof renderKelStats === 'function') renderKelStats();
+      if(typeof renderKelManualList === 'function') renderKelManualList();
+      if(typeof renderRekapTab === 'function' && document.getElementById('tab-rekap') && document.getElementById('tab-rekap').style.display==='block') renderRekapTab();
+    }
+    updateSyncStatusBadge(true);
+  }).catch(err => {
+    isPulling = false;
+    console.error('Error pull Google Sheets:', err);
+    updateSyncStatusBadge(false);
+  });
+}
+
+// Badge kecil status koneksi (opsional tampil di tab Admin jika elemennya ada)
+function updateSyncStatusBadge(ok){
+  const el = document.getElementById('syncStatusBadge');
+  if(!el) return;
+  const now = new Date();
+  const jam = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0')+':'+String(now.getSeconds()).padStart(2,'0');
+  el.textContent = ok ? ('🟢 Tersambung — update terakhir '+jam) : ('🔴 Gagal konek — cek internet/URL');
+  el.style.color = ok ? 'var(--accent-dark)' : 'var(--bad)';
+}
+
+/**
+ * Tarik config sesi (nama, jam auto-tutup, status closed) dari Sheets,
+ * gabungkan ke sesi lokal, lalu cek apakah sudah waktunya tutup otomatis.
+ * Ini yang bikin SEMUA HP "sepakat" soal jam auto-tutup dan status sesi,
+ * walau yang mengatur jam auto-tutup cuma 1 HP.
+ */
+function pullSesiConfig(sesiKey){
+  const sheetUrl = getSheetUrl();
+  if(!sheetUrl || !sesiKey) return;
+
+  fetch(sheetUrl, {
+    method:'POST',
+    body: JSON.stringify({ action:'getSesiConfig', sesiKey: sesiKey })
+  }).then(r=>r.json()).then(result=>{
+    if(!result.success || !Array.isArray(result.data) || result.data.length===0) return;
+    const cfg = result.data[0];
+    const session = ensureSession(sesiKey);
+    let berubah = false;
+
+    if(cfg.autoTutupJam && session.autoTutupJam !== cfg.autoTutupJam){
+      session.autoTutupJam = cfg.autoTutupJam;
+      berubah = true;
+    }
+    if(cfg.closed && !session.closed){
+      ROSTER.forEach(p=>{ if(!session.records[p.i]) session.records[p.i] = {status:'Alpa', time:''}; });
+      session.closed = true;
+      berubah = true;
+    }
+    if(berubah){
+      saveDB();
+      if(currentSessionKey === sesiKey){
+        if(typeof document.getElementById('sesiAutoTutupJam').value !== 'undefined') document.getElementById('sesiAutoTutupJam').value = session.autoTutupJam||'';
+        renderAutoTutupStatus();
+        renderScanStats();
+        renderManualList();
+      }
+    }
+
+    // Cek juga: mungkin jam target sudah lewat SEKARANG di HP ini walau belum di-flag closed di Sheets
+    // (misal HP yang set autoTutupJam sedang mati). HP mana pun boleh jadi yang menutup duluan.
+    const ditutupSekarang = cekDanTutupOtomatis(sesiKey, session);
+    if(ditutupSekarang && currentSessionKey === sesiKey){
+      renderAutoTutupStatus();
+      renderScanStats();
+      renderManualList();
+    }
+  }).catch(err=>console.error('Gagal pull config sesi:', err));
+}
+
+// Auto-refresh berkala: setiap 5 detik, tarik data terbaru dari Sheets
+// untuk tanggal hari ini (sesi absensi umum) DAN sesi kelompok yang lagi dibuka.
+let autoSyncInterval = null;
+function startAutoSync(){
+  if(autoSyncInterval) clearInterval(autoSyncInterval);
+  // Tidak perlu cek localStorage lagi -> getSheetUrl() selalu punya nilai
+  // (pakai default bawaan kalau belum pernah di-override manual di tab Admin).
+
+  const doPull = ()=>{
+    pullFromGoogleSheets(todayStr()); // sesi absensi umum hari ini
+    pullSesiConfig(todayStr()); // ambil jam auto-tutup + status closed sesi hari ini
+    if(typeof currentKelKey !== 'undefined' && currentKelKey) pullFromGoogleSheets(currentKelKey); // sesi kelompok yg aktif
+    if(typeof currentSessionKey !== 'undefined' && currentSessionKey && currentSessionKey !== todayStr()){
+      pullFromGoogleSheets(currentSessionKey);
+      pullSesiConfig(currentSessionKey);
+    }
+  };
+
+  doPull(); // langsung tarik sekali begitu app dibuka
+  autoSyncInterval = setInterval(doPull, 5000); // lalu ulangi tiap 5 detik
+}
+
+document.addEventListener('visibilitychange', ()=>{
+  // Begitu HP dibuka lagi dari layar terkunci/app lain, langsung tarik data terbaru
+  if(document.visibilityState === 'visible') pullFromGoogleSheets(todayStr());
+});
 
 /* ---------- INIT ---------- */
 initCetak();
 initScan();
 initRekap();
 renderScanTab();
+startAutoSync(); // Mulai auto pull dari Google Sheets (kalau URL sudah pernah di-setup)
 </script>
 </body>
 </html>
