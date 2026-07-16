@@ -22,20 +22,71 @@
     background:var(--bg); color:var(--ink); padding-bottom:60px;
   }
   header{
-    background:var(--accent-dark); color:#fff; padding:18px 16px 14px;
-    position:sticky; top:0; z-index:20;
+    background:var(--accent-dark); color:#fff; padding:12px 16px;
+    position:sticky; top:0; z-index:20; display:flex;
+    align-items:center; gap:12px;
+  }
+  header .header-content{
+    flex:1;
   }
   header h1{margin:0; font-size:18px; font-weight:600;}
   header p{margin:2px 0 0; font-size:12.5px; color:#cfe3d6;}
   nav{
     display:flex; gap:6px; margin-top:14px; background:rgba(255,255,255,0.12);
-    padding:4px; border-radius:10px;
+    padding:4px; border-radius:10px; flex-wrap:wrap;
   }
   nav button{
-    flex:1; padding:9px 6px; border:none; background:transparent; color:#e4efe8;
-    font-size:13px; font-weight:600; border-radius:8px; cursor:pointer;
+    flex:1; min-width:100px; padding:9px 6px; border:none; background:transparent; 
+    color:#e4efe8; font-size:12px; font-weight:600; border-radius:8px; cursor:pointer;
   }
   nav button.active{background:#fff; color:var(--accent-dark);}
+  
+  /* Hamburger menu button */
+  .hamburger{
+    display:none; background:none; border:none; color:#fff;
+    font-size:14px; cursor:pointer; padding:8px 12px; margin:0;
+    line-height:1; flex-shrink:0; font-weight:600; text-transform:uppercase;
+    letter-spacing:0.5px; transition:opacity 0.2s;
+  }
+  .hamburger.active { opacity:0.7; }
+  .hamburger:not(.active) { opacity:1; }
+  
+  /* Mobile menu dropdown */
+  #navMobile{
+    display:none; position:fixed; top:56px; left:0; right:0;
+    background:var(--accent-dark); z-index:19; 
+    flex-direction:column; box-shadow:0 4px 10px rgba(0,0,0,0.2);
+    max-height:calc(100vh - 80px); overflow-y:auto;
+  }
+  #navMobile button{
+    flex:none; width:100%; padding:14px 16px; border:none; 
+    background:none; color:#e4efe8; text-align:left; font-size:14px;
+    font-weight:600; border-bottom:1px solid rgba(255,255,255,0.1);
+    cursor:pointer; border-radius:0;
+  }
+  #navMobile button:active{background:rgba(255,255,255,0.1);}
+  #navMobile button.active{background:rgba(255,255,255,0.2); color:#fff;}
+  
+  @media(max-width:768px){
+    header{
+      flex-wrap:nowrap; gap:10px;
+    }
+    header .header-content h1{
+      font-size:16px;
+    }
+    header .header-content p{
+      font-size:11px;
+    }
+    nav{display:none !important; margin:0; padding:0; background:none;}
+    .hamburger{display:block;}
+    #navMobile{display:flex;}
+    #navMobile.hidden{display:none !important;}
+  }
+  @media(min-width:769px){
+    .hamburger{display:none !important;}
+    #navMobile{display:none !important;}
+    nav{display:flex !important;}
+  }
   main{max-width:900px; margin:0 auto; padding:16px;}
   .card{
     background:var(--card); border:1px solid var(--line); border-radius:14px;
@@ -228,8 +279,11 @@
 <div id="scanToast" class="noprint"></div>
 
 <header>
-  <h1>Absensi Pengajian MUMI Citeureup</h1>
-  <p>Scan barcode &middot; rekap otomatis &middot; gratis, jalan langsung di browser</p>
+  <button class="hamburger noprint" id="btnMenu">Menu</button>
+  <div class="header-content">
+    <h1>Absensi Pengajian MUMI Citeureup</h1>
+    <p>Scan barcode &middot; rekap otomatis &middot; gratis, jalan langsung di browser</p>
+  </div>
   <nav class="noprint">
     <button data-tab="scan" class="active">📱 Scan Absensi</button>
     <button data-tab="kelompok">👥 MUMI Kelompok</button>
@@ -243,6 +297,19 @@
     <button data-tab="admin">ℹ️ Admin & WhatsApp</button>
   </nav>
 </header>
+
+<nav class="noprint hidden" id="navMobile">
+  <button data-tab="scan" class="active">📱 Scan Absensi</button>
+  <button data-tab="kelompok">👥 MUMI Kelompok</button>
+  <button data-tab="rekap">📋 Rekap Desa</button>
+  <button data-tab="rekap-kelompok">📊 Rekap Kelompok</button>
+  <button data-tab="dashboard">📈 Dashboard</button>
+  <button data-tab="cetak">🖨️ Cetak Barcode</button>
+  <button data-tab="daftar">➕ Daftar Anggota</button>
+  <button data-tab="edit">✏️ Edit Data</button>
+  <button data-tab="struktur">⚙️ Struktur Pengurus</button>
+  <button data-tab="admin">ℹ️ Admin & WhatsApp</button>
+</nav>
 
 <main>
 
@@ -742,14 +809,37 @@ function fmtDateLabel(dateKey){
 }
 
 /* ---------- NAV ---------- */
-document.querySelectorAll('nav button').forEach(btn=>{
+// Hamburger menu toggle
+document.getElementById('btnMenu').addEventListener('click', ()=>{
+  const navMobile = document.getElementById('navMobile');
+  const btnMenu = document.getElementById('btnMenu');
+  navMobile.classList.toggle('hidden');
+  btnMenu.classList.toggle('active');
+});
+
+// Nav buttons (desktop + mobile)
+document.querySelectorAll('nav button, #navMobile button').forEach(btn=>{
   btn.addEventListener('click', ()=>{
-    document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
+    // Update active state di kedua nav
+    document.querySelectorAll('nav button, #navMobile button').forEach(b=>b.classList.remove('active'));
+    // Set active di button yang di-klik dan pasangannya di nav yang lain
+    document.querySelectorAll(`nav button[data-tab="${btn.dataset.tab}"], #navMobile button[data-tab="${btn.dataset.tab}"]`).forEach(b=>b.classList.add('active'));
+    
+    // Toggle tab content
     ['cetak','scan','rekap','daftar','edit','pengurus','kelompok','struktur','admin','rekap-kelompok','dashboard'].forEach(t=>{
       const el = document.getElementById('tab-'+t);
       if(el) el.style.display = (t===btn.dataset.tab)?'block':'none';
     });
+    
+    // Close mobile menu setelah pilih
+    const navMobile = document.getElementById('navMobile');
+    const btnMenu = document.getElementById('btnMenu');
+    if(!navMobile.classList.contains('hidden')){
+      navMobile.classList.add('hidden');
+      btnMenu.classList.remove('active');
+    }
+    
+    // Render tab content
     if(btn.dataset.tab==='scan') renderScanTab();
     if(btn.dataset.tab==='rekap') renderRekapTab();
     if(btn.dataset.tab==='pengurus') renderPengurusTab();
