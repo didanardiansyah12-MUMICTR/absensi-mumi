@@ -9,6 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --bg:#f6f4ee; --card:#ffffff; --ink:#1f2a22; --ink-soft:#5c6a5f;
@@ -388,9 +389,9 @@
     <p>Scan barcode &middot; rekap otomatis &middot; gratis, jalan langsung di browser</p>
   </div>
   <nav class="noprint">
-    <button data-tab="scan" class="active">📱 Scan Absensi</button>
-    <button data-tab="kelompok">👥 MUMI Kelompok</button>
+    <button data-tab="scan" class="active">📱 Scan Desa</button>
     <button data-tab="rekap">📋 Rekap Desa</button>
+    <button data-tab="kelompok">👥 Scan Kelompok</button>
     <button data-tab="rekap-kelompok">📊 Rekap Kelompok</button>
     <button data-tab="dashboard">📈 Dashboard</button>
     <button data-tab="cetak">🖨️ Cetak Barcode</button>
@@ -406,9 +407,9 @@
     <span>Menu</span>
     <button id="btnMenuClose">✕</button>
   </div>
-  <button class="navlink" data-tab="scan">📱 Scan Absensi</button>
-  <button class="navlink" data-tab="kelompok">👥 MUMI Kelompok</button>
+  <button class="navlink" data-tab="scan">📱 Scan Desa</button>
   <button class="navlink" data-tab="rekap">📋 Rekap Desa</button>
+  <button class="navlink" data-tab="kelompok">👥 Scan Kelompok</button>
   <button class="navlink" data-tab="rekap-kelompok">📊 Rekap Kelompok</button>
   <button class="navlink" data-tab="dashboard">📈 Dashboard</button>
   <button class="navlink" data-tab="cetak">🖨️ Cetak Barcode</button>
@@ -768,7 +769,27 @@
       </select>
       <select id="rekapKelBulan"></select>
     </div>
+    <div class="row noprint" style="margin-top:8px;">
+      <button class="btn ghost" id="btnCetakRekapKel">Cetak rekap</button>
+      <button class="btn ghost" id="btnCsvKel">Unduh CSV</button>
+    </div>
     <div id="rekapKelContent" style="margin-top:12px;"></div>
+  </div>
+
+  <div class="card">
+    <h2>Detail kehadiran (bulanan)</h2>
+    <div class="row noprint">
+      <select id="filterStatusKel">
+        <option value="">Semua status</option>
+        <option value="Hadir">Hadir</option>
+        <option value="Izin">Izin</option>
+        <option value="Sakit">Sakit</option>
+        <option value="Alpa">Alpa / tanpa keterangan</option>
+      </select>
+    </div>
+    <div style="overflow-x:auto; margin-top:10px;">
+      <table id="tabelDetailKel"></table>
+    </div>
   </div>
 </section>
 
@@ -802,6 +823,96 @@
     <div id="syncStatusBadge" style="font-size:12px; font-weight:600; margin-bottom:10px; min-height:16px;"></div>
     <div class="hint">📌 Semua HP pengurus otomatis saling ter-update data absennya tiap ±5 detik, walau HP lain tiba-tiba mati (data sudah aman tersimpan di Sheets).</div>
     
+    <h3 style="color:var(--accent-dark);margin:14px 0 10px;font-size:14px;">📤 Import Data (Excel / Manual)</h3>
+    <div class="hint" style="margin-bottom:10px;">Import data lama (dari Januari 2026 dst) sekaligus, dari file Excel (.xlsx) atau ketik manual satu per satu. Data ditambahkan/ditimpa ke Google Sheet, otomatis muncul di semua HP.</div>
+
+    <div class="segctrl noprint" id="importModeSwitch" style="margin-bottom:10px;">
+      <button type="button" class="seg-btn active" data-mode="absensi">🗓️ Absensi</button>
+      <button type="button" class="seg-btn" data-mode="anggota">👤 Anggota</button>
+    </div>
+
+    <div id="importAbsensiPanel">
+      <div class="segctrl noprint" id="importAbsensiSubSwitch" style="margin-bottom:10px;">
+        <button type="button" class="seg-btn active" data-sub="excel">📄 Upload Excel</button>
+        <button type="button" class="seg-btn" data-sub="manual">✍️ Input Manual</button>
+      </div>
+
+      <div id="importAbsensiExcel">
+        <div class="hint" style="margin-bottom:8px;">Kolom Excel (baris 1 = header, urutan bebas): <b>Tanggal, PersonId/NomorID, Nama, Kelompok, Status, Jam, Keterangan</b>. Tipe: <b>Desa</b> atau <b>Kelompok</b> dipilih di bawah.</div>
+        <div class="row" style="margin-bottom:8px;">
+          <select id="importAbsensiTipe">
+            <option value="desa">Absensi Desa</option>
+            <option value="kelompok">Absensi Kelompok</option>
+          </select>
+        </div>
+        <input type="file" id="fileAbsensiExcel" accept=".xlsx,.xls,.csv" style="margin-bottom:8px;">
+        <button class="btn" id="btnImportAbsensiExcel" style="width:100%;">⬆️ Import ke Google Sheet</button>
+        <div id="importAbsensiExcelStatus" class="hint" style="margin-top:8px;"></div>
+      </div>
+
+      <div id="importAbsensiManual" style="display:none;">
+        <div class="form-group row">
+          <div><label>Tanggal</label><input type="date" id="manAbsTanggal"></div>
+          <div>
+            <label>Tipe</label>
+            <select id="manAbsTipe">
+              <option value="desa">Desa</option>
+              <option value="kelompok">Kelompok</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group row">
+          <div>
+            <label>Nama (pilih dari roster)</label>
+            <select id="manAbsPerson"></select>
+          </div>
+          <div>
+            <label>Status</label>
+            <select id="manAbsStatus">
+              <option value="Hadir">Hadir</option>
+              <option value="Izin">Izin</option>
+              <option value="Sakit">Sakit</option>
+              <option value="Alpa">Alpa</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group row">
+          <div><label>Jam (opsional)</label><input type="time" id="manAbsJam"></div>
+          <div><label>Keterangan (opsional)</label><input type="text" id="manAbsKet"></div>
+        </div>
+        <button class="btn" id="btnImportAbsensiManual" style="width:100%;">💾 Simpan Absensi Manual</button>
+        <div id="importAbsensiManualStatus" class="hint" style="margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <div id="importAnggotaPanel" style="display:none;">
+      <div class="segctrl noprint" id="importAnggotaSubSwitch" style="margin-bottom:10px;">
+        <button type="button" class="seg-btn active" data-sub="excel">📄 Upload Excel</button>
+        <button type="button" class="seg-btn" data-sub="manual">✍️ Input Manual</button>
+      </div>
+
+      <div id="importAnggotaExcel">
+        <div class="hint" style="margin-bottom:8px;">Kolom Excel (baris 1 = header): <b>PersonId/NomorID, Nama, Kelompok</b>. Anggota dengan ID yang sudah ada akan dilewati (tidak ditimpa), yang baru akan ditambahkan.</div>
+        <input type="file" id="fileAnggotaExcel" accept=".xlsx,.xls,.csv" style="margin-bottom:8px;">
+        <button class="btn" id="btnImportAnggotaExcel" style="width:100%;">⬆️ Import ke Google Sheet</button>
+        <div id="importAnggotaExcelStatus" class="hint" style="margin-top:8px;"></div>
+      </div>
+
+      <div id="importAnggotaManual" style="display:none;">
+        <div class="hint" style="margin-bottom:8px;">Untuk tambah 1 anggota baru dengan QR otomatis, gunakan tab ➕ Daftar Anggota. Form di bawah untuk input cepat tanpa QR.</div>
+        <div class="form-group row">
+          <div><label>Nomor ID</label><input type="number" id="manAnggotaId" placeholder="cth: 120"></div>
+          <div><label>Nama</label><input type="text" id="manAnggotaNama"></div>
+        </div>
+        <div class="form-group">
+          <label>Kelompok</label>
+          <select id="manAnggotaKelompok"></select>
+        </div>
+        <button class="btn" id="btnImportAnggotaManual" style="width:100%;">💾 Simpan Anggota</button>
+        <div id="importAnggotaManualStatus" class="hint" style="margin-top:8px;"></div>
+      </div>
+    </div>
+
     <h3 style="color:var(--accent-dark);margin:14px 0 10px;font-size:14px;">📱 Chat Admin</h3>
     <a href="https://wa.me/6285641464205?text=Halo%20admin%20MUMI%20Citeureup.%20Saya%20ingin%20daftar%2Fedit%20anggota%20atau%20laporkan%20masalah" target="_blank" style="display:block; text-align:center; background:var(--accent); color:#fff; padding:14px; border-radius:9px; text-decoration:none; font-weight:600; margin-bottom:12px; font-size:14px;">
       📱 Chat WhatsApp (085641464205)
@@ -884,6 +995,61 @@ function getSheetUrl(){
   return localStorage.getItem('mumi_sheet_url') || DEFAULT_SHEET_URL;
 }
 
+/* ---------- SYNC KE GOOGLE SHEET (biar semua HP baca sumber sama) ---------- */
+function syncPushStrukturDesa(strukturDesa){
+  fetch(getSheetUrl(), {
+    method:'POST',
+    body: JSON.stringify({ action:'saveStrukturDesa', struktur: strukturDesa })
+  }).catch(err=> console.warn('Gagal sync struktur desa ke Sheet:', err));
+}
+function syncPushStrukturKelompok(struktur){
+  fetch(getSheetUrl(), {
+    method:'POST',
+    body: JSON.stringify({ action:'saveStrukturKelompok', struktur: struktur })
+  }).catch(err=> console.warn('Gagal sync struktur kelompok ke Sheet:', err));
+}
+function syncPushRoster(roster){
+  fetch(getSheetUrl(), {
+    method:'POST',
+    body: JSON.stringify({ action:'saveRoster', roster: roster })
+  }).catch(err=> console.warn('Gagal sync roster ke Sheet:', err));
+}
+
+// Tarik semua data dari Sheet saat app dibuka, timpa localStorage kalau ada data,
+// lalu render ulang tab yang lagi aktif supaya semua HP selalu lihat data terbaru.
+function syncPullAllFromSheet(){
+  fetch(getSheetUrl() + '?action=getAll')
+    .then(r=>r.json())
+    .then(res=>{
+      if(!res || !res.success) return;
+
+      if(Array.isArray(res.roster) && res.roster.length){
+        ROSTER = res.roster.map(p=> ({ i:p.i, n:p.n, k:p.k, f:p.f||'' }));
+        localStorage.setItem(ROSTER_KEY, JSON.stringify(ROSTER));
+      }
+      if(res.strukturDesa && Object.keys(res.strukturDesa).length){
+        localStorage.setItem('mumi_struktur_desa_v1', JSON.stringify(res.strukturDesa));
+      }
+      if(res.strukturKelompok && Object.keys(res.strukturKelompok).length){
+        localStorage.setItem('mumi_struktur_v1', JSON.stringify(res.strukturKelompok));
+      }
+
+      // Render ulang tab yang sedang dibuka biar user langsung lihat data terbaru
+      if(typeof refreshCurrentTabAfterSync === 'function') refreshCurrentTabAfterSync();
+    })
+    .catch(err=> console.warn('Gagal ambil data dari Sheet:', err));
+}
+
+function refreshCurrentTabAfterSync(){
+  const activeSection = document.querySelector('main section[style*="display:block" i]') || document.querySelector('main section:not([style*="display:none"])');
+  if(!activeSection) return;
+  const id = activeSection.id;
+  if(id==='tab-struktur' && typeof renderStrukturTab==='function') renderStrukturTab();
+  if(id==='tab-rekap' && typeof renderRekapTab==='function') renderRekapTab();
+  if(id==='tab-rekap-kelompok' && typeof renderRekapKelompokBulanan==='function') renderRekapKelompokBulanan();
+}
+
+
 function todayStr(){
   const d = new Date();
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -905,6 +1071,7 @@ function saveDB(){
 
 function saveRoster(){
   localStorage.setItem(ROSTER_KEY, JSON.stringify(ROSTER));
+  syncPushRoster(ROSTER);
 }
 
 function loadRosterFromStorage(){
@@ -919,9 +1086,10 @@ function loadRosterFromStorage(){
 }
 
 let DB = loadDB();
-// Load ROSTER dari localStorage jika ada
+// Load ROSTER dari localStorage jika ada (tampil cepat), lalu tarik data terbaru dari Sheet di belakang layar
 const savedRoster = loadRosterFromStorage();
 if(savedRoster) ROSTER = savedRoster;
+setTimeout(syncPullAllFromSheet, 300); // beri waktu DOM/render awal siap dulu
 
 if (DB.newMembers) {
   Object.values(DB.newMembers).forEach(m => {
@@ -2045,6 +2213,9 @@ function initRekapKelompokTab(){
   populateRekapKelBulan();
   document.getElementById('rekapKelKelompok').addEventListener('change', renderRekapKelompokBulanan);
   document.getElementById('rekapKelBulan').addEventListener('change', renderRekapKelompokBulanan);
+  if(document.getElementById('filterStatusKel')) document.getElementById('filterStatusKel').addEventListener('change', renderRekapDetailKelompok);
+  if(document.getElementById('btnCetakRekapKel')) document.getElementById('btnCetakRekapKel').addEventListener('click', ()=>window.print());
+  if(document.getElementById('btnCsvKel')) document.getElementById('btnCsvKel').addEventListener('click', exportCsvKelompok);
   renderRekapKelompokBulanan();
 }
 
@@ -2104,13 +2275,79 @@ function renderRekapKelompokBulanan(){
   });
   
   document.getElementById('rekapKelContent').innerHTML = html || '<p style="color:var(--ink-soft);">Belum ada data untuk bulan ini.</p>';
+  renderRekapDetailKelompok();
+}
+
+// Kumpulkan status terakhir tiap orang per bulan (gabungan semua sesi kelompok bulan itu)
+function getRekapDetailKelompokRows(){
+  const filterKelompok = document.getElementById('rekapKelKelompok').value;
+  const bulanKey = document.getElementById('rekapKelBulan').value || todayStr().substring(0,7);
+  const filterStatus = document.getElementById('filterStatusKel') ? document.getElementById('filterStatusKel').value : '';
+
+  const kelompokList = filterKelompok ? [filterKelompok] : KELOMPOK_STRUKTUR;
+  let rows = [];
+
+  kelompokList.forEach(k=>{
+    const anggotaKelompok = ROSTER.filter(p=>p.k===k);
+    const sesiKelompok = Object.values(DB.kelompokSessions||{}).filter(s=>s.kelompok===k && s.tanggal.substring(0,7)===bulanKey)
+      .sort((a,b)=> a.tanggal.localeCompare(b.tanggal));
+
+    anggotaKelompok.forEach(p=>{
+      let hadir=0, izin=0, sakit=0, alpa=0, terakhirStatus='Belum', terakhirJam='-', terakhirTgl='-';
+      sesiKelompok.forEach(s=>{
+        const r = s.records[p.i];
+        const st = r ? r.status : 'Belum';
+        if(st==='Hadir') hadir++;
+        else if(st==='Izin') izin++;
+        else if(st==='Sakit') sakit++;
+        else if(st==='Alpa') alpa++;
+        if(r){ terakhirStatus = st; terakhirJam = r.time||'-'; terakhirTgl = s.tanggal; }
+      });
+      rows.push({p, k, hadir, izin, sakit, alpa, terakhirStatus, terakhirJam, terakhirTgl, jumlahSesi: sesiKelompok.length});
+    });
+  });
+
+  if(filterStatus){
+    rows = rows.filter(x=> x.terakhirStatus===filterStatus || (filterStatus==='Alpa' && x.terakhirStatus==='Belum'));
+  }
+  return rows;
+}
+
+function renderRekapDetailKelompok(){
+  const rows = getRekapDetailKelompokRows();
+  const tbl = document.getElementById('tabelDetailKel');
+  if(!tbl) return;
+  tbl.innerHTML = `
+    <tr><th>No</th><th>Nama</th><th>Kelompok</th><th>Hadir</th><th>Izin</th><th>Sakit</th><th>Alpa</th><th>Status Terakhir</th><th>Jam Terakhir</th></tr>
+    ${rows.map(x=>`<tr>
+      <td>${x.p.i}</td><td>${x.p.n}</td><td>${x.k}</td>
+      <td>${x.hadir}</td><td>${x.izin}</td><td>${x.sakit}</td><td>${x.alpa}</td>
+      <td><span class="badge ${x.terakhirStatus.toLowerCase()}">${x.terakhirStatus}</span></td>
+      <td>${x.terakhirJam}</td>
+    </tr>`).join('')}`;
+}
+
+function exportCsvKelompok(){
+  const bulanKey = document.getElementById('rekapKelBulan').value || todayStr().substring(0,7);
+  const rows = getRekapDetailKelompokRows();
+  let csv = 'No,Nama,Kelompok,Hadir,Izin,Sakit,Alpa,Status Terakhir,Jam Terakhir\n';
+  rows.forEach(x=>{
+    csv += `${x.p.i},"${x.p.n}",${x.k},${x.hadir},${x.izin},${x.sakit},${x.alpa},${x.terakhirStatus},${x.terakhirJam}\n`;
+  });
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `rekap-kelompok-${bulanKey}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 /* ---------- STRUKTUR PENGURUS ---------- */
 const KELOMPOK_STRUKTUR = ['Al Muhajirin','Bojong Koneng','Kamurang','Sanja','Sentul','Tarikolot'];
 // Setiap jabatan sekarang bisa diisi banyak orang (1 s/d N), tinggal klik "+ Tambah Orang"
 const JABATAN_STRUKTUR = ['Ketua','Wakil','Penerobos','Sekertaris','Keuangan','Keputrian'];
-const JABATAN_DESA = ['Ketua','Wakil','Sekertaris','Bendahara','Penerobos','Kemandirian','Keputrian','Keilmuan'];
+const JABATAN_DESA = ['Ketua','Wakil','Sekertaris','Bendahara','Penerobos','PDDK','Kemandirian','Keputrian','Keilmuan'];
 
 // Format data baru: setiap jabatan -> array of {n:nama, f:fotoBase64}
 const PENGURUS_DESA_DEFAULT = {
@@ -2118,9 +2355,10 @@ const PENGURUS_DESA_DEFAULT = {
   'Wakil': [{n:'Ferdinan Muhamad Rofik', f:''}, {n:'Muhammad Rafli Yanwar', f:''}],
   'Sekertaris': [{n:'Muhammad Fajar Nurhasan', f:''}],
   'Bendahara': [{n:'Addina Uswatun Hasanah', f:''}],
-  'Penerobos': [{n:'Maulana Mudzakir Jamil', f:''}, {n:'Muhammad Akmal Jannatan', f:''}, {n:'Romadhona Fajri Asadulloh', f:''}],
-  'Kemandirian': [{n:'Kenny Perdana Sakti', f:''}],
-  'Keputrian': [{n:'Nurnadilah', f:''}],
+  'Penerobos': [{n:'Maulana Mudzakir Jamil', f:''}, {n:'Hari Septian', f:''}, {n:'Romadhona Fajri Asadulloh', f:''}],
+  'PDDK': [{n:'Sabita', f:''}, {n:'Nando', f:''}],
+  'Kemandirian': [{n:'Kenny Perdana Sakti', f:''}, {n:'Syabani', f:''}, {n:'Alfito', f:''}, {n:'Febrian Rasyid', f:''}, {n:'Hizqil', f:''}],
+  'Keputrian': [{n:'Nurnadilah', f:''}, {n:'Ina El', f:''}, {n:'Arinta P', f:''}],
   'Keilmuan': [{n:'Ahmad Adi Putra', f:''}]
 };
 
@@ -2129,7 +2367,7 @@ const TIER_DESA = [
   ['Ketua'],
   ['Wakil'],
   ['Sekertaris','Bendahara'],
-  ['Penerobos','Kemandirian','Keputrian','Keilmuan']
+  ['Penerobos','PDDK','Kemandirian','Keputrian','Keilmuan']
 ];
 const TIER_KELOMPOK = [
   ['Ketua'],
@@ -2378,6 +2616,7 @@ function saveStrukturDesa(){
     strukturDesa[j] = fieldEl ? readPeopleFromField(fieldEl) : [];
   });
   localStorage.setItem(STORE_DESA, JSON.stringify(strukturDesa));
+  syncPushStrukturDesa(strukturDesa);
 
   let struktur = {};
   try{ struktur = JSON.parse(localStorage.getItem('mumi_struktur_v1')) || {}; }catch(e){}
@@ -2403,6 +2642,7 @@ function saveStrukturPengurus(){
     });
   });
   localStorage.setItem(STORE_STRUKTUR, JSON.stringify(struktur));
+  syncPushStrukturKelompok(struktur);
 
   let strukturDesa = {};
   try{ strukturDesa = JSON.parse(localStorage.getItem('mumi_struktur_desa_v1')) || {}; }catch(e){}
@@ -2596,7 +2836,244 @@ function initAdminTab(){
     sessionStorage.removeItem(GATE_KEY);
     location.reload();
   };
-  
+
+  /* ---------- IMPORT DATA (Excel/Manual) ---------- */
+  // Switch panel utama: Absensi <-> Anggota
+  const importModeSwitch = document.getElementById('importModeSwitch');
+  if(importModeSwitch){
+    importModeSwitch.addEventListener('click', (e)=>{
+      const btn = e.target.closest('.seg-btn');
+      if(!btn) return;
+      importModeSwitch.querySelectorAll('.seg-btn').forEach(b=>b.classList.toggle('active', b===btn));
+      const mode = btn.dataset.mode;
+      document.getElementById('importAbsensiPanel').style.display = mode==='absensi' ? 'block' : 'none';
+      document.getElementById('importAnggotaPanel').style.display = mode==='anggota' ? 'block' : 'none';
+    });
+  }
+  // Sub-switch: Excel <-> Manual, untuk Absensi
+  const importAbsensiSubSwitch = document.getElementById('importAbsensiSubSwitch');
+  if(importAbsensiSubSwitch){
+    importAbsensiSubSwitch.addEventListener('click', (e)=>{
+      const btn = e.target.closest('.seg-btn');
+      if(!btn) return;
+      importAbsensiSubSwitch.querySelectorAll('.seg-btn').forEach(b=>b.classList.toggle('active', b===btn));
+      const sub = btn.dataset.sub;
+      document.getElementById('importAbsensiExcel').style.display = sub==='excel' ? 'block' : 'none';
+      document.getElementById('importAbsensiManual').style.display = sub==='manual' ? 'block' : 'none';
+      if(sub==='manual') isiDropdownPersonAbsensi();
+    });
+  }
+  // Sub-switch: Excel <-> Manual, untuk Anggota
+  const importAnggotaSubSwitch = document.getElementById('importAnggotaSubSwitch');
+  if(importAnggotaSubSwitch){
+    importAnggotaSubSwitch.addEventListener('click', (e)=>{
+      const btn = e.target.closest('.seg-btn');
+      if(!btn) return;
+      importAnggotaSubSwitch.querySelectorAll('.seg-btn').forEach(b=>b.classList.toggle('active', b===btn));
+      const sub = btn.dataset.sub;
+      document.getElementById('importAnggotaExcel').style.display = sub==='excel' ? 'block' : 'none';
+      document.getElementById('importAnggotaManual').style.display = sub==='manual' ? 'block' : 'none';
+    });
+  }
+
+  // Isi dropdown kelompok untuk form manual anggota
+  const manAnggotaKelompokSel = document.getElementById('manAnggotaKelompok');
+  if(manAnggotaKelompokSel){
+    manAnggotaKelompokSel.innerHTML = KELOMPOK_STRUKTUR.map(k=>`<option value="${k}">${k}</option>`).join('');
+  }
+
+  function isiDropdownPersonAbsensi(){
+    const sel = document.getElementById('manAbsPerson');
+    if(!sel) return;
+    sel.innerHTML = ROSTER.map(p=> `<option value="${p.i}">${p.n} (${p.k})</option>`).join('');
+  }
+  isiDropdownPersonAbsensi();
+
+  // Helper: baca file excel/csv jadi array of object (header baris pertama)
+  function bacaFileExcelKeJson(file, callback){
+    const reader = new FileReader();
+    reader.onload = (evt)=>{
+      try{
+        const wb = XLSX.read(evt.target.result, {type:'binary'});
+        const sheetName = wb.SheetNames[0];
+        const json = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {defval:''});
+        callback(null, json);
+      }catch(err){
+        callback(err);
+      }
+    };
+    reader.onerror = ()=> callback(new Error('Gagal membaca file'));
+    reader.readAsBinaryString(file);
+  }
+
+  // Cocokkan nama kolom fleksibel (Tanggal/tanggal, PersonId/NomorID/ID, dst)
+  function ambilKolom(row, ...kemungkinanNama){
+    for(const nama of kemungkinanNama){
+      for(const key of Object.keys(row)){
+        if(key.trim().toLowerCase() === nama.toLowerCase()) return row[key];
+      }
+    }
+    return '';
+  }
+
+  function formatTanggalExcel(val){
+    if(val instanceof Date) return todayStrFromDate(val);
+    if(typeof val === 'number'){
+      // Serial date Excel -> Date
+      const d = XLSX.SSF.parse_date_code(val);
+      if(d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+    }
+    const s = String(val).trim();
+    // Sudah format YYYY-MM-DD
+    if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    // Format DD/MM/YYYY atau DD-MM-YYYY
+    const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if(m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+    return s;
+  }
+  function todayStrFromDate(d){
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+
+  // ---- Import Absensi via Excel ----
+  const btnImportAbsensiExcel = document.getElementById('btnImportAbsensiExcel');
+  if(btnImportAbsensiExcel){
+    btnImportAbsensiExcel.addEventListener('click', ()=>{
+      const fileInput = document.getElementById('fileAbsensiExcel');
+      const statusEl = document.getElementById('importAbsensiExcelStatus');
+      const tipe = document.getElementById('importAbsensiTipe').value;
+      if(!fileInput.files.length){ statusEl.textContent = '⚠️ Pilih file dulu.'; return; }
+      statusEl.textContent = 'Membaca file...';
+
+      bacaFileExcelKeJson(fileInput.files[0], (err, json)=>{
+        if(err){ statusEl.textContent = '❌ Gagal baca file: '+err.message; return; }
+        if(!json.length){ statusEl.textContent = '⚠️ File kosong atau format tidak dikenali.'; return; }
+
+        const rows = json.map(row=>{
+          const personId = ambilKolom(row,'PersonId','NomorID','ID','Nomor ID','No');
+          const person = ROSTER.find(p=> String(p.i)===String(personId));
+          return {
+            tanggal: formatTanggalExcel(ambilKolom(row,'Tanggal','Tgl','Date')),
+            personId: personId,
+            nama: ambilKolom(row,'Nama','Name') || (person? person.n : ''),
+            kelompok: ambilKolom(row,'Kelompok','Kel') || (person? person.k : ''),
+            status: ambilKolom(row,'Status') || 'Hadir',
+            jam: ambilKolom(row,'Jam','Time'),
+            keterangan: ambilKolom(row,'Keterangan','Ket','Notes')
+          };
+        }).filter(r=> r.personId && r.tanggal);
+
+        if(!rows.length){ statusEl.textContent = '⚠️ Tidak ada baris valid (cek kolom Tanggal & PersonId).'; return; }
+
+        statusEl.textContent = `Mengirim ${rows.length} baris ke Google Sheet...`;
+        const action = tipe==='kelompok' ? 'saveAbsensiKelompokBulk' : 'saveAbsensiDesaBulk';
+        fetch(getSheetUrl(), { method:'POST', body: JSON.stringify({ action, rows }) })
+          .then(r=>r.json())
+          .then(res=>{
+            if(res.success){
+              statusEl.textContent = `✅ Berhasil import ${res.count||rows.length} baris.`;
+              fileInput.value = '';
+            }else{
+              statusEl.textContent = '❌ Gagal: '+(res.error||'unknown error');
+            }
+          })
+          .catch(err=> statusEl.textContent = '❌ Gagal kirim ke Sheet: '+err.message);
+      });
+    });
+  }
+
+  // ---- Import Absensi Manual (1 baris) ----
+  const btnImportAbsensiManual = document.getElementById('btnImportAbsensiManual');
+  if(btnImportAbsensiManual){
+    btnImportAbsensiManual.addEventListener('click', ()=>{
+      const statusEl = document.getElementById('importAbsensiManualStatus');
+      const tanggal = document.getElementById('manAbsTanggal').value;
+      const tipe = document.getElementById('manAbsTipe').value;
+      const personId = document.getElementById('manAbsPerson').value;
+      const status = document.getElementById('manAbsStatus').value;
+      const jam = document.getElementById('manAbsJam').value;
+      const ket = document.getElementById('manAbsKet').value;
+      const person = ROSTER.find(p=> String(p.i)===String(personId));
+
+      if(!tanggal || !personId || !person){ statusEl.textContent = '⚠️ Lengkapi tanggal dan nama dulu.'; return; }
+
+      statusEl.textContent = 'Menyimpan...';
+      const action = tipe==='kelompok' ? 'addAbsensiKelompok' : 'addAbsensi';
+      const payload = tipe==='kelompok'
+        ? { action, tanggal, kelompok:person.k, personId:person.i, nama:person.n, status, jam, keterangan:ket }
+        : { action, tanggal, personId:person.i, nama:person.n, kelompok:person.k, status, jam, keterangan:ket };
+
+      fetch(getSheetUrl(), { method:'POST', body: JSON.stringify(payload) })
+        .then(r=>r.json())
+        .then(res=>{
+          statusEl.textContent = res.success ? '✅ Tersimpan ke Google Sheet.' : '❌ Gagal: '+(res.error||'unknown error');
+        })
+        .catch(err=> statusEl.textContent = '❌ Gagal kirim ke Sheet: '+err.message);
+    });
+  }
+
+  // ---- Import Anggota via Excel ----
+  const btnImportAnggotaExcel = document.getElementById('btnImportAnggotaExcel');
+  if(btnImportAnggotaExcel){
+    btnImportAnggotaExcel.addEventListener('click', ()=>{
+      const fileInput = document.getElementById('fileAnggotaExcel');
+      const statusEl = document.getElementById('importAnggotaExcelStatus');
+      if(!fileInput.files.length){ statusEl.textContent = '⚠️ Pilih file dulu.'; return; }
+      statusEl.textContent = 'Membaca file...';
+
+      bacaFileExcelKeJson(fileInput.files[0], (err, json)=>{
+        if(err){ statusEl.textContent = '❌ Gagal baca file: '+err.message; return; }
+        if(!json.length){ statusEl.textContent = '⚠️ File kosong atau format tidak dikenali.'; return; }
+
+        const roster = json.map(row=> ({
+          i: ambilKolom(row,'PersonId','NomorID','ID','Nomor ID','No'),
+          n: ambilKolom(row,'Nama','Name'),
+          k: ambilKolom(row,'Kelompok','Kel'),
+          f: ''
+        })).filter(p=> p.i && p.n);
+
+        if(!roster.length){ statusEl.textContent = '⚠️ Tidak ada baris valid (cek kolom PersonId & Nama).'; return; }
+
+        statusEl.textContent = `Mengirim ${roster.length} anggota ke Google Sheet...`;
+        fetch(getSheetUrl(), { method:'POST', body: JSON.stringify({ action:'addRosterBulk', roster }) })
+          .then(r=>r.json())
+          .then(res=>{
+            if(res.success){
+              statusEl.textContent = `✅ Berhasil tambah ${res.count} anggota baru (yang ID-nya sudah ada dilewati).`;
+              fileInput.value = '';
+              syncPullAllFromSheet();
+            }else{
+              statusEl.textContent = '❌ Gagal: '+(res.error||'unknown error');
+            }
+          })
+          .catch(err=> statusEl.textContent = '❌ Gagal kirim ke Sheet: '+err.message);
+      });
+    });
+  }
+
+  // ---- Import Anggota Manual (1 orang, cepat tanpa QR) ----
+  const btnImportAnggotaManual = document.getElementById('btnImportAnggotaManual');
+  if(btnImportAnggotaManual){
+    btnImportAnggotaManual.addEventListener('click', ()=>{
+      const statusEl = document.getElementById('importAnggotaManualStatus');
+      const id = document.getElementById('manAnggotaId').value;
+      const nama = document.getElementById('manAnggotaNama').value.trim();
+      const kelompok = document.getElementById('manAnggotaKelompok').value;
+
+      if(!id || !nama){ statusEl.textContent = '⚠️ Isi Nomor ID dan Nama dulu.'; return; }
+      if(ROSTER.some(p=> String(p.i)===String(id))){ statusEl.textContent = '⚠️ Nomor ID sudah dipakai, pilih ID lain.'; return; }
+
+      const person = { i: Number(id), n: nama, k: kelompok, f:'' };
+      ROSTER.push(person);
+      saveRoster(); // ini otomatis push ke Sheet juga
+
+      statusEl.textContent = `✅ ${nama} tersimpan ke Google Sheet.`;
+      document.getElementById('manAnggotaId').value = '';
+      document.getElementById('manAnggotaNama').value = '';
+      isiDropdownPersonAbsensi();
+    });
+  }
+
   // Load saved Google Sheets URL
   const savedUrl = localStorage.getItem('mumi_sheet_url');
   if(savedUrl){
